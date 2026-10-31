@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Table, Relation } from '../../types/schema';
 import { Trash2 } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 
 const HEADER_HEIGHT = 44, COMMENT_HEIGHT = 26, ROW_HEIGHT = 32;
 // Distinct color per relation type — purposefully very different hues
@@ -57,7 +58,9 @@ interface RelationshipLinesProps{
 export const RelationshipLines: React.FC<RelationshipLinesProps> = ({
   tables,relations,selectedRelationId,hoveredRelationId,
   onSelectRelation,onDeleteRelation,onHoverRelation,onChangeRelationType,
-}) => (
+}) => {
+  const { theme } = useTheme();
+  return (
   <svg className="absolute inset-0 pointer-events-none overflow-visible z-0"
     style={{width:'10000px',height:'10000px'}}>
     {relations.map(rel=>{
@@ -68,8 +71,10 @@ export const RelationshipLines: React.FC<RelationshipLinesProps> = ({
       const isHovered=hoveredRelationId===rel.id;
       const color=REL_COLOR[rel.type]??'#64748b';
       const active=isSelected||isHovered;
-      // Inactive = dimmed tint of the relation color (not generic grey)
-      const lc = active ? color : color + '70';
+      // In light mode the line itself renders black for contrast/readability; the type badge keeps its color.
+      const lineColor = theme === 'light' ? '#000000' : color;
+      // Inactive = dimmed tint of the line color (not generic grey)
+      const lc = active ? lineColor : lineColor + '70';
       const sp=getPort(src,rel.sourceColumnId,tgt.position.x);
       const tp=getPort(tgt,rel.targetColumnId,src.position.x);
       const sOff=sp.isRight?26:-26;
@@ -135,4 +140,5 @@ export const RelationshipLines: React.FC<RelationshipLinesProps> = ({
       );
     })}
   </svg>
-);
+  );
+};

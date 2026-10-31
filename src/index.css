@@ -338,6 +338,9 @@ input:-webkit-autofill:focus {
 .bg-cyan-500\/20 { background-color: rgba(6, 182, 212, 0.2); }
 .bg-violet-500 { background-color: #8b5cf6; }
 .bg-violet-500\/20 { background-color: rgba(139, 92, 246, 0.2); }
+.bg-blue-500 { background-color: #3b82f6; }
+.bg-rose-500 { background-color: #f43f5e; }
+.bg-slate-400 { background-color: #94a3b8; }
 .bg-slate-800 { background-color: #1e293b; }
 
 .hover\:bg-white\/5:hover { background-color: rgba(255, 255, 255, 0.05); }
@@ -474,6 +477,7 @@ input:focus, select:focus {
 /* Width / Height extras */
 .w-2 { width: 0.5rem; }
 .h-2 { height: 0.5rem; }
+.w-2\.5 { width: 0.625rem; }
 .h-2\.5 { height: 0.625rem; }
 .w-3 { width: 0.75rem; }
 .h-3 { height: 0.75rem; }

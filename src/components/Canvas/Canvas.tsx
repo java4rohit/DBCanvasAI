@@ -5,6 +5,13 @@ import { RelationshipLines } from './RelationshipLines';
 import { RelationGuide } from './RelationGuide';
 import { ZoomIn, ZoomOut, Maximize2, RotateCcw, Plus, Grid, Layout, BookOpen } from 'lucide-react';
 
+// A valid connect target is either the small port dot itself, or anywhere on the
+// column row it belongs to — aiming for a 10px dot while dragging is unreliable,
+// so the whole row (which also carries data-table-id/data-col-id) is droppable too.
+function findConnectTarget(els: Element[]): HTMLElement | undefined {
+  return els.find(el => el.classList.contains('port-btn') || el.hasAttribute('data-col-id')) as HTMLElement | undefined;
+}
+
 interface CanvasProps {
   tables: Table[];
   relations: Relation[];
@@ -168,11 +175,11 @@ export const Canvas: React.FC<CanvasProps> = ({
       connectingRef.current = connectingRef.current
         ? { ...connectingRef.current, currentX: canvasX, currentY: canvasY } : null;
 
-      // Hit-test: find any port button under the cursor during drag
+      // Hit-test: find any port button (or its column row) under the cursor during drag
       const els = document.elementsFromPoint(e.clientX, e.clientY);
-      const portEl = els.find(el => el.classList.contains('port-btn')) as HTMLElement | undefined;
+      const portEl = findConnectTarget(els);
       // Clear previous highlight
-      document.querySelectorAll('.port-btn[data-highlighted]').forEach(el => (el as HTMLElement).removeAttribute('data-highlighted'));
+      document.querySelectorAll('[data-highlighted]').forEach(el => (el as HTMLElement).removeAttribute('data-highlighted'));
       if (portEl) {
         const tblId = portEl.dataset.tableId;
         const colId = portEl.dataset.colId;
@@ -207,7 +214,7 @@ export const Canvas: React.FC<CanvasProps> = ({
     if (src) {
       // Hit-test all elements under cursor
       const els = document.elementsFromPoint(e.clientX, e.clientY);
-      const portEl = els.find(el => el.classList.contains('port-btn')) as HTMLElement | undefined;
+      const portEl = findConnectTarget(els);
       if (portEl) {
         const tgtTableId = portEl.dataset.tableId;
         const tgtColId = portEl.dataset.colId;
@@ -218,7 +225,7 @@ export const Canvas: React.FC<CanvasProps> = ({
       connectingRef.current = null;
       setConnectingSource(null);
       hoveredPortRef.current = null;
-      document.querySelectorAll('.port-btn[data-highlighted]').forEach(el => (el as HTMLElement).removeAttribute('data-highlighted'));
+      document.querySelectorAll('[data-highlighted]').forEach(el => (el as HTMLElement).removeAttribute('data-highlighted'));
       setIsPanning(false);
       setDraggingTableId(null);
       return;

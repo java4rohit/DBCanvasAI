@@ -169,16 +169,16 @@ const colorStyles: Record<
 export const TableCard: React.FC<TableCardProps> = ({
   table,
   isSelected,
-  isConnectingSource: _isConnectingSource,
+  isConnectingSource,
   highlightedColumnId,
   onSelect,
   onEdit: _onEdit,
   onDelete,
   onAddColumn,
   onUpdateTable,
-  onStartConnect: _onStartConnect,
-  onEndConnect: _onEndConnect,
-  onPortHover: _onPortHover,
+  onStartConnect,
+  onEndConnect,
+  onPortHover,
   onColumnHover,
   onMouseDownDrag,
 }) => {
@@ -276,8 +276,8 @@ export const TableCard: React.FC<TableCardProps> = ({
         minWidth: '200px',
         overflow: 'visible',
         background: 'var(--bg-card)',
-        border: isSelected ? '1.5px solid var(--brand)' : `1.5px solid ${currentStyle.glow}`,
-        boxShadow: isSelected
+        border: isSelected || isConnectingSource ? '1.5px solid var(--brand)' : `1.5px solid ${currentStyle.glow}`,
+        boxShadow: isSelected || isConnectingSource
           ? '0 10px 30px -10px rgba(249,115,22,0.35)'
           : `0 8px 24px -8px ${currentStyle.glow}`,
       }}
@@ -340,6 +340,8 @@ export const TableCard: React.FC<TableCardProps> = ({
             <div
               key={col.id}
               id={`col-${table.id}-${col.id}`}
+              data-table-id={table.id}
+              data-col-id={col.id}
               className="group relative flex items-center justify-between px-3 py-1.5 transition-colors"
               style={{
                 overflow: 'visible',
@@ -424,6 +426,40 @@ export const TableCard: React.FC<TableCardProps> = ({
                   </button>
                 )}
               </div>
+
+              {/* Connection ports — drag from either side onto another column's port to create a relation */}
+              <div
+                className="port-btn port-dot"
+                title={`Drag to connect ${col.name}`}
+                data-table-id={table.id}
+                data-col-id={col.id}
+                onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); onStartConnect(col.id, e); }}
+                onMouseUp={() => onEndConnect(col.id)}
+                onMouseEnter={() => onPortHover?.(col.id)}
+                onMouseLeave={() => onPortHover?.(null)}
+                style={{
+                  position: 'absolute', left: -6, top: '50%', transform: 'translateY(-50%)',
+                  width: 10, height: 10, borderRadius: '50%', cursor: 'crosshair', zIndex: 50,
+                  background: col.isPrimaryKey ? '#fcd34d' : col.isForeignKey ? '#67e8f9' : 'var(--text-dim)',
+                  border: '2px solid var(--bg-card)', opacity: 0, transition: 'opacity 0.15s, transform 0.15s',
+                }}
+              />
+              <div
+                className="port-btn port-dot"
+                title={`Drag to connect ${col.name}`}
+                data-table-id={table.id}
+                data-col-id={col.id}
+                onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); onStartConnect(col.id, e); }}
+                onMouseUp={() => onEndConnect(col.id)}
+                onMouseEnter={() => onPortHover?.(col.id)}
+                onMouseLeave={() => onPortHover?.(null)}
+                style={{
+                  position: 'absolute', right: -6, top: '50%', transform: 'translateY(-50%)',
+                  width: 10, height: 10, borderRadius: '50%', cursor: 'crosshair', zIndex: 50,
+                  background: col.isPrimaryKey ? '#fcd34d' : col.isForeignKey ? '#67e8f9' : 'var(--text-dim)',
+                  border: '2px solid var(--bg-card)', opacity: 0, transition: 'opacity 0.15s, transform 0.15s',
+                }}
+              />
             </div>
           );
         })}
@@ -482,6 +518,17 @@ export const TableCard: React.FC<TableCardProps> = ({
       <style>{`
         .table-columns .group:hover .col-delete-btn { opacity: 1 !important; }
         .table-columns .group:hover { background: var(--bg-elevated) !important; }
+        .table-columns .group:hover .port-dot { opacity: 1 !important; }
+        .port-btn[data-highlighted] {
+          opacity: 1 !important;
+          transform: translateY(-50%) scale(1.8) !important;
+          box-shadow: 0 0 0 5px rgba(249,115,22,0.3);
+        }
+        .table-columns .group[data-highlighted] {
+          background: var(--brand-subtle) !important;
+          outline: 1.5px dashed var(--brand);
+          outline-offset: -1.5px;
+        }
       `}</style>
     </div>
   );

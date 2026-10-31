@@ -173,6 +173,15 @@ function AppInner() {
       const m = e.metaKey || e.ctrlKey;
       if (m && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
       if (m && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+      if ((e.key === 'Backspace' || e.key === 'Delete') && selectedRelationId) {
+        const target = e.target as HTMLElement | null;
+        const isTyping = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+        if (!isTyping) {
+          e.preventDefault();
+          commit(tables, relations.filter(r => r.id !== selectedRelationId));
+          setSelectedRelationId(null);
+        }
+      }
     };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
