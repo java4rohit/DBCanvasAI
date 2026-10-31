@@ -1,7 +1,7 @@
-# DBCanvas - Visual Database Schema Designer
+# DBCanvasAI - Visual Database Schema Designer
 
-Live App: https://java4rohit.github.io/DBCanvas/
-Repo: https://github.com/java4rohit/DBCanvas
+Live App: https://java4rohit.github.io/DBCanvasAI/
+Repo: https://github.com/java4rohit/DBCanvasAI
 
 ---
 
@@ -25,8 +25,8 @@ Repo: https://github.com/java4rohit/DBCanvas
 ## Getting Started
 
 ```bash
-git clone https://github.com/java4rohit/DBCanvas.git
-cd DBCanvas
+git clone https://github.com/java4rohit/DBCanvasAI.git
+cd DBCanvasAI
 npm install
 npm run dev
 ```
@@ -43,7 +43,7 @@ npm run preview  # preview locally
 ## Project Structure
 
 ```
-DBCanvas/
+DBCanvasAI/
 +-- public/              Static assets
 +-- src/
 |   +-- components/
@@ -62,7 +62,7 @@ DBCanvas/
 |   +-- App.tsx          Root - all global state lives here
 |   +-- main.tsx         Entry point
 +-- .github/workflows/deploy.yml  Auto-deploy on push to main
-+-- vite.config.ts               Vite config (base: /DBCanvas/)
++-- vite.config.ts               Vite config (base: /DBCanvasAI/)
 ```
 
 ---
@@ -91,9 +91,9 @@ Where: src/App.tsx - useEffect watching tables, relations, projectName
 
 ```ts
 useEffect(() => {
-  localStorage.setItem('dbcanvas_schema', JSON.stringify({ tables, relations, projectName }));
+  localStorage.setItem('DBCanvasAIAI_schema', JSON.stringify({ tables, relations, projectName }));
 }, [tables, relations, projectName]);
-const saved = localStorage.getItem('dbcanvas_schema');
+const saved = localStorage.getItem('DBCanvasAIAI_schema');
 if (saved) { const p = JSON.parse(saved); /* setTables/setRelations */ }
 ```
 
@@ -121,7 +121,7 @@ Type: Add checkConstraint?: string to Column in src/types/schema.ts
 #### 6. Share Schema via URL
 Install: npm install lz-string
 Where: src/utils/shareUtils.ts - encodeSchema() and decodeSchema()
-URL format: https://java4rohit.github.io/DBCanvas/?schema=<base64>
+URL format: https://java4rohit.github.io/DBCanvasAI/?schema=<base64>
 
 #### 7. Import SQL DDL to Canvas
 Where: src/utils/sqlParser.ts + src/components/Modals/ImportSQLModal.tsx
@@ -182,8 +182,8 @@ Reference: LabStep interface in src/types/schema.ts
 
 Every push to main triggers .github/workflows/deploy.yml
 Steps: install > build > deploy to GitHub Pages (~2 minutes)
-Status: https://github.com/java4rohit/DBCanvas/actions
-Live: https://java4rohit.github.io/DBCanvas/
+Status: https://github.com/java4rohit/DBCanvasAI/actions
+Live: https://java4rohit.github.io/DBCanvasAI/
 
 ---
 
