@@ -3,6 +3,8 @@
 Live App: https://java4rohit.github.io/DBCanvasAI/
 Repo: https://github.com/java4rohit/DBCanvasAI
 
+![DBCanvasAI screenshot](public/screenshots/app-screenshot.png)
+
 ---
 
 ## Features
