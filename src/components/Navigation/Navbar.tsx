@@ -53,7 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="navbar-logo">
           <div className="navbar-logo-icon"><Database size={16} strokeWidth={1.8} /></div>
           <div className="navbar-logo-text">
-            <span className="navbar-brand-main">DBCanvas<span className="navbar-brand-accent">AI</span></span>
+            <span className="navbar-brand-main"><span className="navbar-brand-white">DB</span><span className="navbar-brand-accent">Canvas</span><span className="navbar-brand-blue">AI</span></span>
           </div>
         </div>
         <div className="navbar-divider" />

@@ -1,5 +1,5 @@
 /* ========================================================
-   DBCanvasAI · Modern Design System & Vanilla CSS Engine
+   DBCanvasAIAI · Modern Design System & Vanilla CSS Engine
    ======================================================== */
 
 /* ============================================================
@@ -624,7 +624,9 @@ input:focus, select:focus {
 }
 .navbar-logo-text { display: flex; align-items: baseline; gap: 3px; }
 .navbar-brand-main { font-size: 15px; font-weight: 800; letter-spacing: -0.04em; color: var(--text-main); line-height: 1; }
-.navbar-brand-accent { color: var(--brand); }
+.navbar-brand-white { color: #ffffff; }
+.navbar-brand-accent { color: #f97316; }
+.navbar-brand-blue { color: #3b82f6; }
 .navbar-brand-sub {
   font-size: 9px; font-weight: 700; letter-spacing: 0.14em; color: var(--brand);
   font-family: 'JetBrains Mono', monospace; text-transform: uppercase;
