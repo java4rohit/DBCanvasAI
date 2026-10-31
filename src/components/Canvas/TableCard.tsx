@@ -176,9 +176,9 @@ export const TableCard: React.FC<TableCardProps> = ({
   onDelete,
   onAddColumn,
   onUpdateTable,
-  onStartConnect,
-  onEndConnect,
-  onPortHover,
+  onStartConnect: _onStartConnect,
+  onEndConnect: _onEndConnect,
+  onPortHover: _onPortHover,
   onColumnHover,
   onMouseDownDrag,
 }) => {
@@ -403,7 +403,6 @@ export const TableCard: React.FC<TableCardProps> = ({
                 {openTypeColId === col.id && (
                   <TypeDropdown
                     currentType={col.type}
-                    anchorRef={{ current: typeBadgeRefs.current.get(col.id) ?? null }}
                     onSelect={newType => {
                       if (onUpdateTable) {
                         onUpdateTable({ ...table, columns: table.columns.map(c => c.id === col.id ? { ...c, type: newType } : c) });
