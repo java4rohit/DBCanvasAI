@@ -34,6 +34,9 @@ function AppInner() {
   const [future, setFuture] = useState<Snap[]>([]);
   const [functional, setFunctional] = useState<RequirementItem[]>([]);
   const [nonFunctional, setNonFunctional] = useState<RequirementItem[]>([]);
+  const [labDocumentName, setLabDocumentName] = useState<string | null>(null);
+  const [labCollapsed, setLabCollapsed] = useState(false);
+  const labDocumentNameRef = useRef<string | null>(null);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [selectedRelationId, setSelectedRelationId] = useState<string | null>(null);
   const [isAddTableOpen, setIsAddTableOpen] = useState(false);
@@ -42,6 +45,7 @@ function AppInner() {
   const [leftWidth, setLeftWidth] = useState(300);
   const [rightWidth, setRightWidth] = useState(340);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevActiveProjectIdRef = useRef<string | null>(null);
 
   const [resizing, setResizing] = useState<'left' | 'right' | null>(null);
   const resizeStartRef = useRef<{ x: number; w: number }>({ x: 0, w: 0 });
@@ -67,6 +71,10 @@ function AppInner() {
     setRelations(p.relations);
     setFunctional(p.functional);
     setNonFunctional(p.nonFunctional);
+    const docName = p.labDocumentName ?? null;
+    setLabDocumentName(docName);
+    labDocumentNameRef.current = docName;
+    setLabCollapsed(!!docName);
     setPast([]); setFuture([]);
     setSelectedTableId(null); setSelectedRelationId(null);
     setShowNewProject(false);
@@ -82,6 +90,7 @@ function AppInner() {
     saveTimerRef.current = setTimeout(async () => {
       const proj: Project = {
         id, name, tables: t, relations: r, functional: fn, nonFunctional: nfn,
+        labDocumentName: labDocumentNameRef.current,
         createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
       };
       await saveProject(proj);
@@ -148,8 +157,12 @@ function AppInner() {
     if (activeProjectId) persistProject(activeProjectId, projectName, next.tables, next.relations, functional, nonFunctional);
   };
 
-  // Save when project name changes
+  // Save when project name changes (but not when we just switched to a different project —
+  // that would bump updatedAt and reorder the Projects sidebar just from selecting it)
   useEffect(() => {
+    const justSwitchedProject = prevActiveProjectIdRef.current !== activeProjectId;
+    prevActiveProjectIdRef.current = activeProjectId;
+    if (justSwitchedProject) return;
     if (activeProjectId && dbReady && projectName) {
       persistProject(activeProjectId, projectName, tables, relations, functional, nonFunctional);
     }
@@ -228,6 +241,17 @@ function AppInner() {
   const mkReq = (): RequirementItem => ({ id: `req_${Date.now()}`, text: '' });
   const step = LMS_LAB_STEPS[stepIdx] || LMS_LAB_STEPS[0];
 
+  const handleLabExtracted = (newFunctional: RequirementItem[], newNonFunctional: RequirementItem[], documentName: string) => {
+    const f = [...functional, ...newFunctional];
+    const nf = [...nonFunctional, ...newNonFunctional];
+    setFunctional(f);
+    setNonFunctional(nf);
+    setLabDocumentName(documentName);
+    labDocumentNameRef.current = documentName;
+    if (activeProjectId) persistProject(activeProjectId, projectName, tables, relations, f, nf);
+    setLabCollapsed(true);
+  };
+
   // ── Loading spinner ────────────────────────────────────────────────────
   if (!dbReady) {
     return (
@@ -281,17 +305,23 @@ function AppInner() {
               tables={tables} relations={relations} onSelectStepIndex={setStepIdx}
               onApplySolution={(st, sr) => { if (st.length > 0) commit(st, sr); }}
               onLoadAllLMS={() => commit(COMPLETE_LMS_TEMPLATE.tables, COMPLETE_LMS_TEMPLATE.relations)}
-              width={leftWidth} />
+              documentName={labDocumentName}
+              collapsed={labCollapsed}
+              onToggleCollapsed={() => setLabCollapsed(c => !c)}
+              onExtracted={handleLabExtracted}
+              width={labCollapsed ? 44 : leftWidth} />
             {/* Left resize handle */}
-            <div onMouseDown={startResizeLeft}
-              style={{ width: 6, flexShrink: 0, cursor: 'col-resize', zIndex: 30, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: resizing === 'left' ? 'var(--brand-subtle)' : 'var(--border-subtle)', transition: 'background 0.15s' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--brand)')}
-              onMouseLeave={e => (e.currentTarget.style.background = resizing === 'left' ? 'var(--brand)' : 'var(--border-subtle)')}>
-              {/* Grip dots */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, pointerEvents: 'none' }}>
-                {[0,1,2].map(i => <div key={i} style={{ width: 2, height: 2, borderRadius: '50%', background: 'var(--text-dim)' }} />)}
+            {!labCollapsed && (
+              <div onMouseDown={startResizeLeft}
+                style={{ width: 6, flexShrink: 0, cursor: 'col-resize', zIndex: 30, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: resizing === 'left' ? 'var(--brand-subtle)' : 'var(--border-subtle)', transition: 'background 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--brand)')}
+                onMouseLeave={e => (e.currentTarget.style.background = resizing === 'left' ? 'var(--brand)' : 'var(--border-subtle)')}>
+                {/* Grip dots */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, pointerEvents: 'none' }}>
+                  {[0,1,2].map(i => <div key={i} style={{ width: 2, height: 2, borderRadius: '50%', background: 'var(--text-dim)' }} />)}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
         <Canvas tables={tables} relations={relations} selectedTableId={selectedTableId} selectedRelationId={selectedRelationId}

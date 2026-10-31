@@ -12,6 +12,7 @@ export interface Project {
   relations: Relation[];
   functional: RequirementItem[];
   nonFunctional: RequirementItem[];
+  labDocumentName: string | null;
   updatedAt: string; // ISO string
   createdAt: string;
 }
@@ -87,6 +88,7 @@ export function createNewProject(name: string): Project {
     relations: [],
     functional: [],
     nonFunctional: [],
+    labDocumentName: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

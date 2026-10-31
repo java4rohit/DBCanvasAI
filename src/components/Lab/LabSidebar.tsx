@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { Upload, FileText, Sparkles, ChevronDown, ChevronRight, X, Loader2 } from 'lucide-react';
-import type { Table, Relation } from '../../types/schema';
+import { Upload, FileText, Sparkles, ChevronDown, ChevronRight, ChevronsRight, X, Loader2 } from 'lucide-react';
+import type { Table, Relation, RequirementItem } from '../../types/schema';
 
 interface LabSidebarProps {
   currentStep: any;
@@ -11,9 +11,15 @@ interface LabSidebarProps {
   onSelectStepIndex: (i: number) => void;
   onApplySolution: (t: Table[], r: Relation[]) => void;
   onLoadAllLMS: () => void;
+  documentName: string | null;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+  onExtracted: (functional: RequirementItem[], nonFunctional: RequirementItem[], documentName: string) => void;
 }
 
-export const LabSidebar: React.FC<LabSidebarProps & { width?: number }> = ({ width = 300 }) => {
+const mkReq = (text: string): RequirementItem => ({ id: `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, text });
+
+export const LabSidebar: React.FC<LabSidebarProps & { width?: number }> = ({ documentName, collapsed, onToggleCollapsed, onExtracted, width = 300 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -23,6 +29,20 @@ export const LabSidebar: React.FC<LabSidebarProps & { width?: number }> = ({ wid
   const [showF, setShowF] = useState(true);
   const [showNF, setShowNF] = useState(true);
   const [analyzed, setAnalyzed] = useState(false);
+
+  if (collapsed) {
+    return (
+      <aside style={{ width: `${width}px`, minWidth: `${width}px`, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '16px', gap: '10px', backgroundColor: 'var(--bg-surface)', borderRight: '1px solid var(--border-subtle)', zIndex: 10 }}>
+        <button onClick={onToggleCollapsed} title="Expand Requirements Analyzer"
+          style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <ChevronsRight size={14} color="#f97316" />
+        </button>
+        <div title={documentName ?? 'Requirements Analyzer'} style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <FileText size={14} color="var(--text-dim)" />
+        </div>
+      </aside>
+    );
+  }
 
   const handleFile = (f: File) => {
     if (!f.name.match(/\.(pdf|doc|docx|txt)$/i)) { alert('Please upload PDF, DOC, DOCX or TXT'); return; }
@@ -36,7 +56,7 @@ export const LabSidebar: React.FC<LabSidebarProps & { width?: number }> = ({ wid
     if (!file) return;
     setIsAnalyzing(true);
     await new Promise(r => setTimeout(r, 2200));
-    setFunctional([
+    const extractedFunctional = [
       'Users must be able to register and log in securely.',
       'System shall support role-based access control (admin, user, guest).',
       'Users can create, read, update, and delete their own records.',
@@ -44,17 +64,20 @@ export const LabSidebar: React.FC<LabSidebarProps & { width?: number }> = ({ wid
       'Search and filter functionality must be available for all entities.',
       'System shall support file uploads and attachments.',
       'Audit logs must be maintained for all critical operations.',
-    ]);
-    setNonFunctional([
+    ];
+    const extractedNonFunctional = [
       'System must support 10,000 concurrent users with less than 200ms response.',
       'Data must be encrypted at rest and in transit (AES-256, TLS 1.3).',
       'Database must achieve 99.9% uptime with automated failover.',
       'All API endpoints must respond within 500ms under normal load.',
       'System must be horizontally scalable via container orchestration.',
       'Backups must be performed daily with 30-day retention.',
-    ]);
+    ];
+    setFunctional(extractedFunctional);
+    setNonFunctional(extractedNonFunctional);
     setIsAnalyzing(false);
     setAnalyzed(true);
+    onExtracted(extractedFunctional.map(mkReq), extractedNonFunctional.map(mkReq), file.name);
   };
 
   const removeFile = () => {
@@ -70,8 +93,17 @@ export const LabSidebar: React.FC<LabSidebarProps & { width?: number }> = ({ wid
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
           <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(249,115,22,0.15)', color: '#f97316', border: '1px solid rgba(249,115,22,0.3)' }}>LAB</span>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500 }}>Requirements Analyzer</span>
+          <button onClick={onToggleCollapsed} title="Collapse panel"
+            style={{ marginLeft: 'auto', color: 'var(--text-dim)', padding: '4px', borderRadius: '6px', cursor: 'pointer', display: 'flex' }}>
+            <ChevronsRight size={14} style={{ transform: 'rotate(180deg)' }} />
+          </button>
         </div>
         <p style={{ fontSize: '11px', color: 'var(--text-dim)', lineHeight: 1.5 }}>Upload a requirements document. AI will extract functional and non-functional requirements to guide your schema design.</p>
+        {documentName && !file && (
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <FileText size={12} color="var(--brand)" /> Last analyzed: {documentName}
+          </p>
+        )}
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
