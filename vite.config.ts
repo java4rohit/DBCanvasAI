@@ -5,10 +5,15 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    strictPort: false,
-    host: '127.0.0.1',
+    strictPort: true,
+    host: 'localhost',
+    watch: {
+      usePolling: false,
+    },
     hmr: {
-      host: '127.0.0.1',
+      protocol: 'ws',
+      host: 'localhost',
+      port: 5173,
     },
   },
   optimizeDeps: {

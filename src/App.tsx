@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Table, Relation, RequirementItem } from './types/schema';
 import { LMS_LAB_STEPS } from './data/lmsLabSteps';
 import { COMPLETE_LMS_TEMPLATE } from './data/templates';
@@ -30,6 +30,42 @@ function AppInner() {
   const [isAddTableOpen, setIsAddTableOpen] = useState(false);
   const [isSQLOpen, setIsSQLOpen] = useState(false);
   const [dropPosition, setDropPosition] = useState<{ x: number; y: number }>({ x: 200, y: 200 });
+  const [leftWidth, setLeftWidth] = useState(300);
+  const [rightWidth, setRightWidth] = useState(340);
+
+  const [resizing, setResizing] = useState<'left' | 'right' | null>(null);
+  const resizeStartRef = useRef<{ x: number; w: number }>({ x: 0, w: 0 });
+
+  useEffect(() => {
+    if (!resizing) return;
+    const onMove = (e: MouseEvent) => {
+      const delta = e.clientX - resizeStartRef.current.x;
+      if (resizing === 'left') {
+        setLeftWidth(Math.min(Math.max(resizeStartRef.current.w + delta, 180), 520));
+      } else {
+        setRightWidth(Math.min(Math.max(resizeStartRef.current.w - delta, 200), 560));
+      }
+    };
+    const onUp = () => setResizing(null);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, [resizing]);
+
+  const startResizeLeft = (e: React.MouseEvent) => {
+    e.preventDefault();
+    resizeStartRef.current = { x: e.clientX, w: leftWidth };
+    setResizing('left');
+  };
+
+  const startResizeRight = (e: React.MouseEvent) => {
+    e.preventDefault();
+    resizeStartRef.current = { x: e.clientX, w: rightWidth };
+    setResizing('right');
+  };
 
   const commit = (t: Table[], r: Relation[]) => {
     setPast(p => [...p, { tables, relations }]);
@@ -71,6 +107,10 @@ function AppInner() {
   const handleAutoArrange = () => {
     const cols = 4, sx = 360, sy = 320;
     commit(tables.map((t, i) => ({ ...t, position: { x: 60 + (i % cols) * sx, y: 80 + Math.floor(i / cols) * sy } })), relations);
+  };
+
+  const handleChangeRelationType = (relId: string, type: '1:1' | '1:N' | 'N:M') => {
+    commit(tables, relations.map(r => r.id === relId ? { ...r, type } : r));
   };
 
   const handleCreateRelation = (sTblId: string, sColId: string, tTblId: string, tColId: string) => {
@@ -130,12 +170,25 @@ function AppInner() {
         onUndo={undo} onRedo={redo}
         onNewProject={() => setShowNewProject(true)}
       />
-      <div style={{ display:'flex', flex:1, overflow:'hidden', position:'relative' }}>
+      <div style={{ display:'flex', flex:1, overflow:'hidden', position:'relative', cursor: resizing ? 'col-resize' : 'default', userSelect: resizing ? 'none' : 'auto' }}>
         {mode === 'lab' && (
-          <LabSidebar currentStep={step} allSteps={LMS_LAB_STEPS} currentStepIndex={stepIdx}
-            tables={tables} relations={relations} onSelectStepIndex={setStepIdx}
-            onApplySolution={(st, sr) => { if (st.length > 0) commit(st, sr); }}
-            onLoadAllLMS={() => commit(COMPLETE_LMS_TEMPLATE.tables, COMPLETE_LMS_TEMPLATE.relations)} />
+          <div style={{ display:'flex', flexShrink:0 }}>
+            <LabSidebar currentStep={step} allSteps={LMS_LAB_STEPS} currentStepIndex={stepIdx}
+              tables={tables} relations={relations} onSelectStepIndex={setStepIdx}
+              onApplySolution={(st, sr) => { if (st.length > 0) commit(st, sr); }}
+              onLoadAllLMS={() => commit(COMPLETE_LMS_TEMPLATE.tables, COMPLETE_LMS_TEMPLATE.relations)}
+              width={leftWidth} />
+            {/* Left resize handle */}
+            <div onMouseDown={startResizeLeft}
+              style={{ width: 6, flexShrink: 0, cursor: 'col-resize', zIndex: 30, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: resizing === 'left' ? 'var(--brand-subtle)' : 'var(--border-subtle)', transition: 'background 0.15s' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--brand)')}
+              onMouseLeave={e => (e.currentTarget.style.background = resizing === 'left' ? 'var(--brand)' : 'var(--border-subtle)')}>
+              {/* Grip dots */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, pointerEvents: 'none' }}>
+                {[0,1,2].map(i => <div key={i} style={{ width: 2, height: 2, borderRadius: '50%', background: 'var(--text-dim)' }} />)}
+              </div>
+            </div>
+          </div>
         )}
         <Canvas tables={tables} relations={relations} selectedTableId={selectedTableId} selectedRelationId={selectedRelationId}
           onSelectTable={setSelectedTableId} onSelectRelation={setSelectedRelationId}
@@ -148,8 +201,18 @@ function AppInner() {
           onDropTable={(x, y) => { setDropPosition({ x, y }); setIsAddTableOpen(true); }}
           onCreateRelation={handleCreateRelation}
           onDeleteRelation={(id) => { commit(tables, relations.filter(r => r.id!==id)); if(selectedRelationId===id) setSelectedRelationId(null); }}
+          onChangeRelationType={handleChangeRelationType}
           onAutoArrange={handleAutoArrange} />
-        <RightPanel selectedTable={selectedTable} allTables={tables} functional={functional} nonFunctional={nonFunctional}
+        {/* Right resize handle */}
+        <div onMouseDown={startResizeRight}
+          style={{ width: 6, flexShrink: 0, cursor: 'col-resize', zIndex: 30, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: resizing === 'right' ? 'var(--brand)' : 'var(--border-subtle)', transition: 'background 0.15s' }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--brand)')}
+          onMouseLeave={e => (e.currentTarget.style.background = resizing === 'right' ? 'var(--brand)' : 'var(--border-subtle)')}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, pointerEvents: 'none' }}>
+            {[0,1,2].map(i => <div key={i} style={{ width: 2, height: 2, borderRadius: '50%', background: 'var(--text-dim)' }} />)}
+          </div>
+        </div>
+        <RightPanel selectedTable={selectedTable} allTables={tables} functional={functional} nonFunctional={nonFunctional} width={rightWidth}
           onUpdateTable={(u) => commit(tables.map(t => t.id===u.id ? u : t), relations)}
           onDeleteTable={(id) => { commit(tables.filter(t=>t.id!==id), relations.filter(r=>r.sourceTableId!==id&&r.targetTableId!==id)); if(selectedTableId===id) setSelectedTableId(null); }}
           onDragTableCard={(e) => { e.dataTransfer.setData('text/plain','new-table'); }}

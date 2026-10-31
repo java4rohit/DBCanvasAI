@@ -27,10 +27,10 @@ const Toggle = ({ value, onClick, label, disabled }: {
     className={`flex items-center gap-1.5 cursor-pointer ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}
     onClick={disabled ? undefined : onClick}
   >
-    <div className={`w-7 h-4 rounded-full transition-colors ${value ? 'bg-brand' : 'bg-slate-700'}`}>
+    <div className="w-7 h-4 rounded-full transition-colors" style={{ background: value ? 'var(--brand)' : 'var(--border-strong)' }}>
       <div className={`w-3 h-3 rounded-full bg-white shadow transition-transform mt-0.5 ${value ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
     </div>
-    <span className="text-[10px] text-slate-300">{label}</span>
+    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{label}</span>
   </div>
 );
 
@@ -65,26 +65,30 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({ col, currentTableId,
     onCreateRelation?.(currentTableId, col.id, opt.tableId, opt.columnId);
   };
 
+  const inputStyle: React.CSSProperties = { background: 'var(--bg-input)', border: '1px solid var(--border-medium)', color: 'var(--text-main)', borderRadius: 8, padding: '6px 8px', fontSize: 12, outline: 'none', width: '100%', WebkitAppearance: 'none' as const };
+  const selectStyle: React.CSSProperties = { ...inputStyle, cursor: 'pointer' };
+
   return (
-    <div className="border border-white/10 rounded-xl bg-[#0e101a] overflow-hidden mb-3">
-      <div className="flex items-center justify-between px-3 py-2 bg-[#141724] border-b border-white/10">
+    <div className="rounded-xl overflow-hidden mb-3" style={{ border: '1px solid var(--border-subtle)', background: 'var(--bg-card)' }}>
+      <div className="flex items-center justify-between px-3 py-2" style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border-subtle)' }}>
         <input type="text" value={col.name} onChange={(e) => onChange(col.id, { name: e.target.value })}
-          className="font-mono text-xs text-white bg-transparent outline-none w-full" placeholder="column_name" />
-        <button onClick={() => onDelete(col.id)} className="ml-2 text-slate-500 hover:text-red-400 shrink-0">
+          className="font-mono text-xs outline-none w-full"
+          style={{ background: 'var(--bg-elevated)', color: 'var(--text-main)', border: 'none' }}
+          placeholder="column_name" />
+        <button onClick={() => onDelete(col.id)} className="ml-2 hover:text-red-400 shrink-0" style={{ color: 'var(--text-dim)' }}>
           <Trash2 size={13} />
         </button>
       </div>
       <div className="p-3 space-y-3">
         <Row label="Type">
-          <select value={col.type} onChange={(e) => onChange(col.id, { type: e.target.value as DataType })}
-            className="flex-1 bg-[#191c2c] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-brand">
+          <select value={col.type} onChange={(e) => onChange(col.id, { type: e.target.value as DataType })} style={{ ...selectStyle, flex: 1 }}>
             {ALL_TYPES.map((t) => <option key={t} value={t}>{t.toLowerCase()}</option>)}
           </select>
         </Row>
         <Row label="Key">
           <select value={col.isPrimaryKey ? 'primary key' : 'none'}
             onChange={(e) => { const isPK = e.target.value === 'primary key'; onChange(col.id, { isPrimaryKey: isPK, isNullable: isPK ? false : col.isNullable, isUnique: isPK ? true : col.isUnique, isIndexed: isPK ? true : col.isIndexed }); }}
-            className="w-28 bg-[#191c2c] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-brand">
+            style={{ ...selectStyle, width: 112 }}>
             <option value="none">none</option>
             <option value="primary key">primary key</option>
           </select>
@@ -92,15 +96,14 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({ col, currentTableId,
           <Toggle value={col.isNullable} onClick={() => onChange(col.id, { isNullable: !col.isNullable })} label="Nullable" disabled={col.isPrimaryKey} />
         </Row>
         <Row label="References">
-          <select value={curRef} onChange={(e) => handleRef(e.target.value)}
-            className="flex-1 bg-[#191c2c] border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-brand">
+          <select value={curRef} onChange={(e) => handleRef(e.target.value)} style={{ ...selectStyle, flex: 1 }}>
             <option value="nothing">nothing</option>
             {refOptions.map((r) => <option key={`${r.tableId}-${r.columnId}`} value={r.label}>{r.label}</option>)}
           </select>
         </Row>
         <Row label="Default">
           <input type="text" value={col.defaultValue ?? ''} onChange={(e) => onChange(col.id, { defaultValue: e.target.value || undefined })}
-            className="flex-1 bg-[#191c2c] border border-white/10 rounded-lg px-2 py-1.5 font-mono text-xs text-white focus:outline-none focus:border-brand" placeholder="e.g. CURRENT_TIMESTAMP" />
+            className="font-mono" style={{ ...inputStyle, flex: 1 }} placeholder="e.g. CURRENT_TIMESTAMP" />
         </Row>
         <Row label="Indexed">
           <Toggle value={col.isIndexed} onClick={() => onChange(col.id, { isIndexed: !col.isIndexed })} label="IDX" />
@@ -112,7 +115,7 @@ export const ColumnEditor: React.FC<ColumnEditorProps> = ({ col, currentTableId,
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="flex items-center gap-2 flex-wrap">
-    <label className="text-[10px] text-slate-400 w-16 shrink-0">{label}</label>
+    <label className="text-[10px] w-16 shrink-0" style={{ color: 'var(--text-muted)' }}>{label}</label>
     {children}
   </div>
 );

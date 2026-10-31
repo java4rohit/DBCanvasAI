@@ -50,7 +50,9 @@ export interface Table {
   columns: Column[];
   color: TableColor;
   position: { x: number; y: number };
+  width?: number; // resizable card width, default 280
   comment?: string;
+  uniqueTogether?: string[][]; // each inner array = one UNIQUE constraint across those column names
 }
 
 export interface Relation {

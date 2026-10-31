@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import type { Table, Relation, Viewport } from '../../types/schema';
 import { TableCard } from './TableCard';
 import { RelationshipLines } from './RelationshipLines';
-import { ZoomIn, ZoomOut, Maximize2, RotateCcw, Plus, Grid, Layout } from 'lucide-react';
+import { RelationGuide } from './RelationGuide';
+import { ZoomIn, ZoomOut, Maximize2, RotateCcw, Plus, Grid, Layout, BookOpen } from 'lucide-react';
 
 interface CanvasProps {
   tables: Table[];
@@ -20,6 +21,7 @@ interface CanvasProps {
   onDropTable?: (canvasX: number, canvasY: number) => void;
   onCreateRelation: (sourceTableId: string, sourceColId: string, targetTableId: string, targetColId: string) => void;
   onDeleteRelation: (relationId: string) => void;
+  onChangeRelationType?: (relationId: string, type: '1:1' | '1:N' | 'N:M') => void;
   onAutoArrange: () => void;
 }
 
@@ -39,9 +41,11 @@ export const Canvas: React.FC<CanvasProps> = ({
   onDropTable,
   onCreateRelation,
   onDeleteRelation,
+  onChangeRelationType,
   onAutoArrange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [showGuide, setShowGuide] = useState(false);
 
   // Viewport State (Pan & Zoom)
   const [viewport, setViewport] = useState<Viewport>({ x: 40, y: 30, zoom: 0.95 });
@@ -74,6 +78,8 @@ export const Canvas: React.FC<CanvasProps> = ({
 
   const [hoveredRelationId, setHoveredRelationId] = useState<string | null>(null);
   const [highlightedColumnId, setHighlightedColumnId] = useState<string | null>(null);
+  // Ref mirrors connectingSource so mousemove always has fresh value (no stale closure)
+  const connectingRef = useRef<typeof connectingSource>(null);
   // Track which column port the mouse is hovering over during a connection drag
   const hoveredPortRef = useRef<{ tableId: string; columnId: string } | null>(null);
 
@@ -130,76 +136,96 @@ export const Canvas: React.FC<CanvasProps> = ({
     };
   };
 
-  // Start drag relation from column port
+  // Start drag — compute exact port center, prevent canvas pan from starting
   const handleStartConnect = (tableId: string, columnId: string, e: React.MouseEvent) => {
     if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const canvasX = (e.clientX - rect.left - viewport.x) / viewport.zoom;
-    const canvasY = (e.clientY - rect.top - viewport.y) / viewport.zoom;
+    e.stopPropagation();
+    e.preventDefault();
 
-    setConnectingSource({
-      tableId,
-      columnId,
-      startX: canvasX,
-      startY: canvasY,
-      currentX: canvasX,
-      currentY: canvasY,
-    });
+    const portEl = e.currentTarget as HTMLElement;
+    const portRect = portEl.getBoundingClientRect();
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const canvasX = (portRect.left + portRect.width / 2 - containerRect.left - viewport.x) / viewport.zoom;
+    const canvasY = (portRect.top + portRect.height / 2 - containerRect.top - viewport.y) / viewport.zoom;
+
+    const src = { tableId, columnId, startX: canvasX, startY: canvasY, currentX: canvasX, currentY: canvasY };
+    connectingRef.current = src;
+    setConnectingSource(src);
+    setIsPanning(false); // ensure canvas pan doesn't steal events
   };
 
-  // End connection drop
-  const handleEndConnect = (targetTableId: string, targetColId: string) => {
-    if (!connectingSource) return;
+  // End connection — not used for port-drop (handled in mouseUp via hit-test)
+  const handleEndConnect = (_targetTableId: string, _targetColId: string) => {};
 
-    if (connectingSource.tableId !== targetTableId) {
-      onCreateRelation(connectingSource.tableId, connectingSource.columnId, targetTableId, targetColId);
-    }
-    setConnectingSource(null);
-  };
+  // Global mouse move — uses refs so no stale closure issues
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (connectingRef.current && containerRef.current) {
+      // Update drag line end
+      const rect = containerRef.current.getBoundingClientRect();
+      const canvasX = (e.clientX - rect.left - viewport.x) / viewport.zoom;
+      const canvasY = (e.clientY - rect.top - viewport.y) / viewport.zoom;
+      setConnectingSource(prev => prev ? { ...prev, currentX: canvasX, currentY: canvasY } : null);
+      connectingRef.current = connectingRef.current
+        ? { ...connectingRef.current, currentX: canvasX, currentY: canvasY } : null;
 
-  // Global mouse move
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (isPanning) {
-        const dx = e.clientX - panStartRef.current.x;
-        const dy = e.clientY - panStartRef.current.y;
-        setViewport((prev) => ({
-          ...prev,
-          x: panStartRef.current.startViewportX + dx,
-          y: panStartRef.current.startViewportY + dy,
-        }));
-      } else if (draggingTableId) {
-        const dx = (e.clientX - dragTableStartRef.current.startX) / viewport.zoom;
-        const dy = (e.clientY - dragTableStartRef.current.startY) / viewport.zoom;
-
-        const newX = Math.round((dragTableStartRef.current.startTableX + dx) / 10) * 10;
-        const newY = Math.round((dragTableStartRef.current.startTableY + dy) / 10) * 10;
-
-        onUpdateTablePosition(draggingTableId, { x: newX, y: newY });
-      } else if (connectingSource && containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const canvasX = (e.clientX - rect.left - viewport.x) / viewport.zoom;
-        const canvasY = (e.clientY - rect.top - viewport.y) / viewport.zoom;
-
-        setConnectingSource((prev) => (prev ? { ...prev, currentX: canvasX, currentY: canvasY } : null));
+      // Hit-test: find any port button under the cursor during drag
+      const els = document.elementsFromPoint(e.clientX, e.clientY);
+      const portEl = els.find(el => el.classList.contains('port-btn')) as HTMLElement | undefined;
+      // Clear previous highlight
+      document.querySelectorAll('.port-btn[data-highlighted]').forEach(el => (el as HTMLElement).removeAttribute('data-highlighted'));
+      if (portEl) {
+        const tblId = portEl.dataset.tableId;
+        const colId = portEl.dataset.colId;
+        if (tblId && colId && tblId !== connectingRef.current?.tableId) {
+          hoveredPortRef.current = { tableId: tblId, columnId: colId };
+          portEl.setAttribute('data-highlighted', ''); // visually highlight target
+        } else {
+          hoveredPortRef.current = null;
+        }
+      } else {
+        hoveredPortRef.current = null;
       }
-    },
-    [isPanning, draggingTableId, connectingSource, viewport, onUpdateTablePosition]
-  );
+      return;
+    }
 
-  // Global mouse up — finalize connection if hovering a port
-  const handleMouseUp = useCallback(() => {
+    if (isPanning) {
+      const dx = e.clientX - panStartRef.current.x;
+      const dy = e.clientY - panStartRef.current.y;
+      setViewport(prev => ({ ...prev, x: panStartRef.current.startViewportX + dx, y: panStartRef.current.startViewportY + dy }));
+    } else if (draggingTableId) {
+      const dx = (e.clientX - dragTableStartRef.current.startX) / viewport.zoom;
+      const dy = (e.clientY - dragTableStartRef.current.startY) / viewport.zoom;
+      const newX = Math.round((dragTableStartRef.current.startTableX + dx) / 10) * 10;
+      const newY = Math.round((dragTableStartRef.current.startTableY + dy) / 10) * 10;
+      onUpdateTablePosition(draggingTableId, { x: newX, y: newY });
+    }
+  }, [isPanning, draggingTableId, viewport, onUpdateTablePosition]);
+
+  // Global mouse up — hit-test port elements to finalize connection
+  const handleMouseUp = useCallback((e: MouseEvent) => {
+    const src = connectingRef.current;
+    if (src) {
+      // Hit-test all elements under cursor
+      const els = document.elementsFromPoint(e.clientX, e.clientY);
+      const portEl = els.find(el => el.classList.contains('port-btn')) as HTMLElement | undefined;
+      if (portEl) {
+        const tgtTableId = portEl.dataset.tableId;
+        const tgtColId = portEl.dataset.colId;
+        if (tgtTableId && tgtColId && tgtTableId !== src.tableId) {
+          onCreateRelation(src.tableId, src.columnId, tgtTableId, tgtColId);
+        }
+      }
+      connectingRef.current = null;
+      setConnectingSource(null);
+      hoveredPortRef.current = null;
+      document.querySelectorAll('.port-btn[data-highlighted]').forEach(el => (el as HTMLElement).removeAttribute('data-highlighted'));
+      setIsPanning(false);
+      setDraggingTableId(null);
+      return;
+    }
     setIsPanning(false);
     setDraggingTableId(null);
-    if (connectingSource && hoveredPortRef.current) {
-      const { tableId: tgtTblId, columnId: tgtColId } = hoveredPortRef.current;
-      if (tgtTblId !== connectingSource.tableId) {
-        onCreateRelation(connectingSource.tableId, connectingSource.columnId, tgtTblId, tgtColId);
-      }
-    }
-    setConnectingSource(null);
-    hoveredPortRef.current = null;
-  }, [connectingSource, onCreateRelation]);
+  }, [onCreateRelation]);
 
   useEffect(() => {
     window.addEventListener('mousemove', handleMouseMove);
@@ -275,24 +301,35 @@ export const Canvas: React.FC<CanvasProps> = ({
           onSelectRelation={onSelectRelation}
           onDeleteRelation={onDeleteRelation}
           onHoverRelation={setHoveredRelationId}
+          onChangeRelationType={onChangeRelationType}
         />
 
-        {/* Live Dragging Connection Line */}
-        {connectingSource && (
-          <svg className="absolute inset-0 pointer-events-none w-[10000px] h-[10000px] overflow-visible z-30">
-            <line
-              x1={connectingSource.startX}
-              y1={connectingSource.startY}
-              x2={connectingSource.currentX}
-              y2={connectingSource.currentY}
-              stroke="#f97316"
-              strokeWidth={2.5}
-              strokeDasharray="6 4"
-            />
-            <circle cx={connectingSource.startX} cy={connectingSource.startY} r={5} fill="#f97316" />
-            <circle cx={connectingSource.currentX} cy={connectingSource.currentY} r={4} fill="#38bdf8" />
-          </svg>
-        )}
+        {/* Live Dragging Connection Line — bezier curve preview */}
+        {connectingSource && (() => {
+          const sx = connectingSource.startX;
+          const sy = connectingSource.startY;
+          const ex = connectingSource.currentX;
+          const ey = connectingSource.currentY;
+          const curv = Math.max(Math.abs(ex - sx) * 0.5, 60);
+          const c1x = sx + curv;
+          const c2x = ex - curv;
+          const path = `M${sx},${sy} C${c1x},${sy} ${c2x},${ey} ${ex},${ey}`;
+          return (
+            <svg className="absolute inset-0 pointer-events-none overflow-visible z-30"
+              style={{ width: '10000px', height: '10000px' }}>
+              {/* Glow */}
+              <path d={path} fill="none" stroke="#f97316" strokeWidth={6} strokeOpacity={0.15} />
+              {/* Main dashed curve */}
+              <path d={path} fill="none" stroke="#f97316" strokeWidth={2} strokeDasharray="6 4" />
+              {/* Start dot */}
+              <circle cx={sx} cy={sy} r={5} fill="#f97316" />
+              <circle cx={sx} cy={sy} r={9} fill="none" stroke="#f97316" strokeWidth={1.5} strokeOpacity={0.4} />
+              {/* End dot */}
+              <circle cx={ex} cy={ey} r={5} fill="#38bdf8" />
+              <circle cx={ex} cy={ey} r={9} fill="none" stroke="#38bdf8" strokeWidth={1.5} strokeOpacity={0.4} />
+            </svg>
+          );
+        })()}
 
         {/* Table Cards */}
         {tables.map((table) => (
@@ -317,63 +354,57 @@ export const Canvas: React.FC<CanvasProps> = ({
       </div>
 
       {/* Floating Canvas Controls (Bottom Right) */}
-      <div className="absolute bottom-5 right-5 z-20 flex items-center gap-1.5 p-1.5 rounded-xl bg-[#11131f]/90 backdrop-blur-md border border-white/10 shadow-xl shadow-black/50 text-slate-300">
-        <button
-          onClick={handleZoomIn}
-          title="Zoom In"
-          className="p-2 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
-        >
+      <div className="absolute bottom-5 right-5 z-20 flex items-center gap-1.5 p-1.5 rounded-xl backdrop-blur-md shadow-xl" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
+        <button onClick={handleZoomIn} title="Zoom In" className="p-2 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-main)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
           <ZoomIn size={16} />
         </button>
-        <button
-          onClick={handleZoomOut}
-          title="Zoom Out"
-          className="p-2 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
-        >
+        <button onClick={handleZoomOut} title="Zoom Out" className="p-2 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-main)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
           <ZoomOut size={16} />
         </button>
-        <div className="px-2 font-mono text-xs text-slate-400 select-none">
+        <div className="px-2 font-mono text-xs select-none" style={{ color: 'var(--text-dim)' }}>
           {Math.round(viewport.zoom * 100)}%
         </div>
-        <div className="w-[1px] h-4 bg-white/10" />
-        <button
-          onClick={handleFitToScreen}
-          title="Fit All Tables to Screen"
-          className="p-2 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
-        >
+        <div className="w-[1px] h-4" style={{ background: 'var(--border-subtle)' }} />
+        <button onClick={handleFitToScreen} title="Fit All Tables to Screen" className="p-2 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-main)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
           <Maximize2 size={16} />
         </button>
-        <button
-          onClick={handleResetZoom}
-          title="Reset Zoom & Pan"
-          className="p-2 rounded-lg hover:bg-white/10 hover:text-white transition-colors"
-        >
+        <button onClick={handleResetZoom} title="Reset Zoom & Pan" className="p-2 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-main)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
           <RotateCcw size={15} />
         </button>
-        <button
-          onClick={onAutoArrange}
-          title="Auto-Arrange Layout"
-          className="p-2 rounded-lg hover:bg-white/10 hover:text-brand-light transition-colors"
-        >
+        <button onClick={onAutoArrange} title="Auto-Arrange Layout" className="p-2 rounded-lg transition-colors" style={{ color: 'var(--text-muted)' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--brand)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
           <Layout size={16} />
         </button>
+        <div className="w-[1px] h-4" style={{ background: 'var(--border-subtle)' }} />
+        <button onClick={() => setShowGuide(v => !v)} title="Relation Guide" className="p-2 rounded-lg transition-colors"
+          style={{ color: showGuide ? 'var(--brand)' : 'var(--text-muted)', background: showGuide ? 'var(--brand-subtle)' : 'transparent' }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--brand)')} onMouseLeave={e => { if (!showGuide) e.currentTarget.style.color = 'var(--text-muted)'; }}>
+          <BookOpen size={16} />
+        </button>
       </div>
+
+      {/* Relation Guide Panel */}
+      {showGuide && <RelationGuide onClose={() => setShowGuide(false)} />}
+
+
 
       {/* Canvas Quick Add Hint if empty */}
       {tables.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <div className="pointer-events-auto p-8 rounded-2xl bg-[#11131f]/80 backdrop-blur-xl border border-white/10 text-center max-w-md shadow-2xl">
-            <div className="w-12 h-12 rounded-xl bg-brand/10 border border-brand/30 text-brand flex items-center justify-center mx-auto mb-4">
+          <div className="pointer-events-auto p-8 rounded-2xl backdrop-blur-xl text-center max-w-md shadow-2xl" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-medium)' }}>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: 'var(--brand-subtle)', border: '1px solid var(--brand-border)', color: 'var(--brand)' }}>
               <Grid size={24} />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Blank Architecture Canvas</h3>
-            <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+            <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-main)' }}>Blank Architecture Canvas</h3>
+            <p className="text-xs mb-5 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               Design a database schema from scratch or select one of the 14 guided LMS steps from the left lab panel.
             </p>
             <div className="flex items-center justify-center gap-3">
               <button
                 onClick={onAddTable}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand hover:bg-brand-hover text-white text-xs font-medium transition-all shadow-lg shadow-brand/25"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-xs font-medium transition-all"
+                style={{ background: 'var(--brand)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--brand-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--brand)')}
               >
                 <Plus size={14} /> Add First Table
               </button>

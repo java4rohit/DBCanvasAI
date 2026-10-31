@@ -137,6 +137,24 @@ code, pre, .font-mono {
   font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
 }
 
+/* ── Fix browser-default white input/select backgrounds ── */
+input, textarea, select {
+  background-color: var(--bg-input);
+  color: var(--text-main);
+}
+input::placeholder, textarea::placeholder {
+  color: var(--text-dim);
+  opacity: 1;
+}
+/* Kill browser autofill yellow/white bg */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-main) !important;
+  -webkit-box-shadow: 0 0 0px 1000px var(--bg-input) inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 /* Base utility classes */
 .flex { display: flex; }
 .inline-flex { display: inline-flex; }

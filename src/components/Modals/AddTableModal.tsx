@@ -56,27 +56,28 @@ export const AddTableModal: React.FC<AddTableModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm select-none">
-      <div className="relative w-full max-w-md bg-[#0e101a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-[#141724]">
+      <div className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)' }}>
+        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-elevated)' }}>
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-brand/10 border border-brand/30 flex items-center justify-center text-brand">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--brand-subtle)', border: '1px solid var(--brand-border)', color: 'var(--brand)' }}>
               <Database size={16} />
             </div>
-            <h3 className="text-sm font-semibold text-white">Add New Table</h3>
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-main)' }}>Add New Table</h3>
           </div>
-          <button onClick={onClose} className="p-1 rounded text-slate-400 hover:text-white hover:bg-white/10">
+          <button onClick={onClose} className="p-1 rounded transition-colors" style={{ color: 'var(--text-muted)' }}>
             <X size={16} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Table Name</label>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Table Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-[#191c2c] border border-white/10 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-brand"
+              className="w-full rounded-lg px-3 py-2 text-xs font-mono focus:outline-none"
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border-medium)', color: 'var(--text-main)' }}
               placeholder="e.g. users, courses, invoices"
               autoFocus
               required
@@ -84,7 +85,7 @@ export const AddTableModal: React.FC<AddTableModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Category Color</label>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Category Color</label>
             <div className="flex items-center gap-2">
               {TABLE_COLORS.map((c) => (
                 <button
@@ -116,12 +117,13 @@ export const AddTableModal: React.FC<AddTableModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Description (Optional)</label>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Description (Optional)</label>
             <input
               type="text"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="w-full bg-[#191c2c] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-brand"
+              className="w-full rounded-lg px-3 py-2 text-xs focus:outline-none"
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border-medium)', color: 'var(--text-main)' }}
               placeholder="e.g. Student progress and video playback states"
             />
           </div>
@@ -130,13 +132,17 @@ export const AddTableModal: React.FC<AddTableModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white"
+              className="px-4 py-2 rounded-lg text-xs font-medium transition-colors"
+              style={{ color: 'var(--text-muted)' }}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-lg bg-brand hover:bg-brand-hover text-white text-xs font-semibold shadow-md shadow-brand/20"
+              className="px-5 py-2 rounded-lg text-white text-xs font-semibold transition-colors"
+              style={{ background: 'var(--brand)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--brand-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--brand)')}
             >
               Create Table
             </button>
