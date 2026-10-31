@@ -46,7 +46,7 @@ export const NewProjectScreen: React.FC<NewProjectScreenProps> = ({ onStart }) =
             <Database size={28} strokeWidth={1.5} />
           </div>
           <div className="np-logo-text">
-            <span className="np-logo-brand">DB<span style={{ color: 'var(--brand)' }}>Canvas</span></span>
+            <span className="np-logo-brand"><span style={{ color: '#ffffff' }}>DB</span><span style={{ color: '#f97316' }}>Canvas</span><span style={{ color: '#3b82f6' }}>AI</span></span>
           </div>
         </div>
 
