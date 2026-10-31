@@ -46,20 +46,19 @@ export const NewProjectScreen: React.FC<NewProjectScreenProps> = ({ onStart }) =
             <Database size={28} strokeWidth={1.5} />
           </div>
           <div className="np-logo-text">
-            <span className="np-logo-brand">DB Design</span>
-            <span className="np-logo-sub">LAB</span>
+            <span className="np-logo-brand">DB<span style={{ color: 'var(--brand)' }}>Canvas</span></span>
           </div>
         </div>
 
         {/* Headline */}
         <h1 className="np-headline">
-          Design beautiful
-          <span className="np-headline-accent"> database schemas</span>
+          Your visual
+          <span className="np-headline-accent"> database canvas</span>
           <br />
-          visually & effortlessly
+          built for developers
         </h1>
         <p className="np-subheadline">
-          Start a new schema project — name it, then design tables, relations, and export production-ready SQL.
+          Start a new project — name it, drag tables onto the canvas, draw relations, and export production-ready SQL in seconds.
         </p>
 
         {/* Form */}

@@ -1,5 +1,5 @@
 /* ========================================================
-   sys0 DB Lab · Modern Design System & Vanilla CSS Engine
+   DBCanvas · Modern Design System & Vanilla CSS Engine
    ======================================================== */
 
 /* ============================================================
@@ -605,7 +605,8 @@ input:focus, select:focus {
   color: var(--brand); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .navbar-logo-text { display: flex; align-items: baseline; gap: 3px; }
-.navbar-brand-main { font-size: 14px; font-weight: 800; letter-spacing: -0.03em; color: var(--text-main); line-height: 1; }
+.navbar-brand-main { font-size: 15px; font-weight: 800; letter-spacing: -0.04em; color: var(--text-main); line-height: 1; }
+.navbar-brand-accent { color: var(--brand); }
 .navbar-brand-sub {
   font-size: 9px; font-weight: 700; letter-spacing: 0.14em; color: var(--brand);
   font-family: 'JetBrains Mono', monospace; text-transform: uppercase;
