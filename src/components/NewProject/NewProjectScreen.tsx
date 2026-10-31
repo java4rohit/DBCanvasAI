@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Database, Layers, Zap, ArrowRight, Sparkles } from 'lucide-react';
+import { Database, Layers, Zap, ArrowRight, Sparkles, ChevronLeft } from 'lucide-react';
 
 interface NewProjectScreenProps {
   onStart: (projectName: string) => void;
+  hasExistingProjects?: boolean;
+  onBack?: () => void;
 }
 
 const SUGGESTIONS = [
@@ -14,7 +16,7 @@ const SUGGESTIONS = [
   'SaaS Multi-Tenant',
 ];
 
-export const NewProjectScreen: React.FC<NewProjectScreenProps> = ({ onStart }) => {
+export const NewProjectScreen: React.FC<NewProjectScreenProps> = ({ onStart, onBack }) => {
   const [name, setName] = useState('');
   const [focused, setFocused] = useState(false);
 
@@ -40,6 +42,12 @@ export const NewProjectScreen: React.FC<NewProjectScreenProps> = ({ onStart }) =
       <div className="np-grid" />
 
       <div className="np-content">
+        {/* Back button */}
+        {onBack && (
+          <button onClick={onBack} className="np-back-btn">
+            <ChevronLeft size={14} /><span>Back to project</span>
+          </button>
+        )}
         {/* Logo */}
         <div className="np-logo">
           <div className="np-logo-icon">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Table, Relation, RequirementItem } from './types/schema';
 import { LMS_LAB_STEPS } from './data/lmsLabSteps';
 import { COMPLETE_LMS_TEMPLATE } from './data/templates';
@@ -10,12 +10,21 @@ import { AddTableModal } from './components/Modals/AddTableModal';
 import { SQLPanel } from './components/SQLGenerator/SQLPanel';
 import { RightPanel } from './components/RightPanel/RightPanel';
 import { NewProjectScreen } from './components/NewProject/NewProjectScreen';
+import { ProjectsSidebar } from './components/Projects/ProjectsSidebar';
 import { ThemeProvider } from './context/ThemeContext';
+import {
+  getAllProjects, saveProject, deleteProject,
+  getActiveProjectId, setActiveProjectId, createNewProject,
+} from './hooks/useProjectDB';
+import type { Project } from './hooks/useProjectDB';
 
 interface Snap { tables: Table[]; relations: Relation[]; }
 
 function AppInner() {
-  const [showNewProject, setShowNewProject] = useState(true);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [activeProjectId, setActiveProjectIdState] = useState<string | null>(null);
+  const [showNewProject, setShowNewProject] = useState(false);
+  const [dbReady, setDbReady] = useState(false);
   const [mode, setMode] = useState<'lab' | 'freeform'>('freeform');
   const [stepIdx, setStepIdx] = useState(0);
   const [projectName, setProjectName] = useState('');
@@ -32,9 +41,53 @@ function AppInner() {
   const [dropPosition, setDropPosition] = useState<{ x: number; y: number }>({ x: 200, y: 200 });
   const [leftWidth, setLeftWidth] = useState(300);
   const [rightWidth, setRightWidth] = useState(340);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [resizing, setResizing] = useState<'left' | 'right' | null>(null);
   const resizeStartRef = useRef<{ x: number; w: number }>({ x: 0, w: 0 });
+
+  // ── Load all projects from IndexedDB on mount ──────────────────────────
+  useEffect(() => {
+    (async () => {
+      const all = await getAllProjects();
+      setProjects(all);
+      const activeId = getActiveProjectId();
+      if (all.length === 0) { setShowNewProject(true); setDbReady(true); return; }
+      const active = all.find(p => p.id === activeId) ?? all[0];
+      loadProjectIntoState(active);
+      setDbReady(true);
+    })();
+  }, []);
+
+  const loadProjectIntoState = (p: Project) => {
+    setActiveProjectIdState(p.id);
+    setActiveProjectId(p.id);
+    setProjectName(p.name);
+    setTables(p.tables);
+    setRelations(p.relations);
+    setFunctional(p.functional);
+    setNonFunctional(p.nonFunctional);
+    setPast([]); setFuture([]);
+    setSelectedTableId(null); setSelectedRelationId(null);
+    setShowNewProject(false);
+  };
+
+  // ── Auto-save debounced 600ms ──────────────────────────────────────────
+  const persistProject = useCallback((
+    id: string, name: string, t: Table[], r: Relation[],
+    fn: RequirementItem[], nfn: RequirementItem[]
+  ) => {
+    if (!id) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      const proj: Project = {
+        id, name, tables: t, relations: r, functional: fn, nonFunctional: nfn,
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      };
+      await saveProject(proj);
+      setProjects(await getAllProjects());
+    }, 600);
+  }, []);
 
   useEffect(() => {
     if (!resizing) return;
@@ -72,6 +125,7 @@ function AppInner() {
     setFuture([]);
     setTables(t);
     setRelations(r);
+    if (activeProjectId) persistProject(activeProjectId, projectName, t, r, functional, nonFunctional);
   };
 
   const undo = () => {
@@ -81,6 +135,7 @@ function AppInner() {
     setPast(p => p.slice(0, -1));
     setTables(prev.tables);
     setRelations(prev.relations);
+    if (activeProjectId) persistProject(activeProjectId, projectName, prev.tables, prev.relations, functional, nonFunctional);
   };
 
   const redo = () => {
@@ -90,7 +145,15 @@ function AppInner() {
     setFuture(f => f.slice(1));
     setTables(next.tables);
     setRelations(next.relations);
+    if (activeProjectId) persistProject(activeProjectId, projectName, next.tables, next.relations, functional, nonFunctional);
   };
+
+  // Save when project name changes
+  useEffect(() => {
+    if (activeProjectId && dbReady && projectName) {
+      persistProject(activeProjectId, projectName, tables, relations, functional, nonFunctional);
+    }
+  }, [projectName]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -128,7 +191,7 @@ function AppInner() {
 
   const handleExportJson = () => {
     const blob = new Blob([JSON.stringify({ tables, relations }, null, 2)], { type: 'application/json' });
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'schema.json' });
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${projectName || 'schema'}.json` });
     a.click(); URL.revokeObjectURL(a.href);
   };
 
@@ -141,19 +204,50 @@ function AppInner() {
     reader.readAsText(file);
   };
 
+  // ── Project management ─────────────────────────────────────────────────
+  const handleStartNewProject = async (name: string) => {
+    const proj = createNewProject(name);
+    await saveProject(proj);
+    const all = await getAllProjects();
+    setProjects(all);
+    loadProjectIntoState(proj);
+  };
+
+  const handleSelectProject = (p: Project) => loadProjectIntoState(p);
+
+  const handleDeleteProject = async (id: string) => {
+    await deleteProject(id);
+    const all = await getAllProjects();
+    setProjects(all);
+    if (id === activeProjectId) {
+      if (all.length > 0) loadProjectIntoState(all[0]);
+      else { setActiveProjectIdState(null); setActiveProjectId(null); setShowNewProject(true); }
+    }
+  };
+
   const mkReq = (): RequirementItem => ({ id: `req_${Date.now()}`, text: '' });
   const step = LMS_LAB_STEPS[stepIdx] || LMS_LAB_STEPS[0];
 
+  // ── Loading spinner ────────────────────────────────────────────────────
+  if (!dbReady) {
+    return (
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'var(--bg-dark)', flexDirection:'column', gap:12 }}>
+        <div style={{ width:32, height:32, border:'3px solid var(--border-subtle)', borderTopColor:'var(--brand)', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
+        <span style={{ color:'var(--text-muted)', fontSize:13 }}>Loading projects…</span>
+      </div>
+    );
+  }
+
   if (showNewProject) {
     return (
-      <NewProjectScreen onStart={(name) => {
-        setProjectName(name);
-        setTables([]);
-        setRelations([]);
-        setPast([]);
-        setFuture([]);
-        setShowNewProject(false);
-      }} />
+      <NewProjectScreen
+        onStart={handleStartNewProject}
+        hasExistingProjects={projects.length > 0}
+        onBack={projects.length > 0 ? () => {
+          const active = projects.find(p => p.id === activeProjectId) ?? projects[0];
+          if (active) loadProjectIntoState(active);
+        } : undefined}
+      />
     );
   }
 
@@ -171,6 +265,16 @@ function AppInner() {
         onNewProject={() => setShowNewProject(true)}
       />
       <div style={{ display:'flex', flex:1, overflow:'hidden', position:'relative', cursor: resizing ? 'col-resize' : 'default', userSelect: resizing ? 'none' : 'auto' }}>
+
+        {/* ── Projects Sidebar ── */}
+        <ProjectsSidebar
+          projects={projects}
+          activeProjectId={activeProjectId}
+          onSelectProject={handleSelectProject}
+          onNewProject={() => setShowNewProject(true)}
+          onDeleteProject={handleDeleteProject}
+        />
+
         {mode === 'lab' && (
           <div style={{ display:'flex', flexShrink:0 }}>
             <LabSidebar currentStep={step} allSteps={LMS_LAB_STEPS} currentStepIndex={stepIdx}
@@ -192,7 +296,11 @@ function AppInner() {
         )}
         <Canvas tables={tables} relations={relations} selectedTableId={selectedTableId} selectedRelationId={selectedRelationId}
           onSelectTable={setSelectedTableId} onSelectRelation={setSelectedRelationId}
-          onUpdateTablePosition={(id, pos) => setTables(prev => prev.map(t => t.id === id ? { ...t, position: pos } : t))}
+          onUpdateTablePosition={(id, pos) => {
+            const updated = tables.map(t => t.id === id ? { ...t, position: pos } : t);
+            setTables(updated);
+            if (activeProjectId) persistProject(activeProjectId, projectName, updated, relations, functional, nonFunctional);
+          }}
           onEditTable={(t) => setSelectedTableId(t.id)}
           onDeleteTable={(id) => { commit(tables.filter(t => t.id!==id), relations.filter(r => r.sourceTableId!==id && r.targetTableId!==id)); if(selectedTableId===id) setSelectedTableId(null); }}
           onAddColumn={(id) => setSelectedTableId(id)}
@@ -219,12 +327,12 @@ function AppInner() {
           onClickAddTable={() => { setDropPosition({ x: 200, y: 200 }); setIsAddTableOpen(true); }}
           onCreateRelation={handleCreateRelation}
           onDeleteRelationByCol={(srcTblId, srcColId) => commit(tables, relations.filter(r => !(r.sourceTableId === srcTblId && r.sourceColumnId === srcColId)))}
-          onAddFunctional={() => setFunctional(p=>[...p,mkReq()])}
-          onChangeFunctional={(id,text) => setFunctional(p=>p.map(r=>r.id===id?{...r,text}:r))}
-          onDeleteFunctional={(id) => setFunctional(p=>p.filter(r=>r.id!==id))}
-          onAddNonFunctional={() => setNonFunctional(p=>[...p,mkReq()])}
-          onChangeNonFunctional={(id,text) => setNonFunctional(p=>p.map(r=>r.id===id?{...r,text}:r))}
-          onDeleteNonFunctional={(id) => setNonFunctional(p=>p.filter(r=>r.id!==id))} />
+          onAddFunctional={() => { const f=[...functional,mkReq()]; setFunctional(f); if(activeProjectId) persistProject(activeProjectId,projectName,tables,relations,f,nonFunctional); }}
+          onChangeFunctional={(id,text) => { const f=functional.map(r=>r.id===id?{...r,text}:r); setFunctional(f); if(activeProjectId) persistProject(activeProjectId,projectName,tables,relations,f,nonFunctional); }}
+          onDeleteFunctional={(id) => { const f=functional.filter(r=>r.id!==id); setFunctional(f); if(activeProjectId) persistProject(activeProjectId,projectName,tables,relations,f,nonFunctional); }}
+          onAddNonFunctional={() => { const nf=[...nonFunctional,mkReq()]; setNonFunctional(nf); if(activeProjectId) persistProject(activeProjectId,projectName,tables,relations,functional,nf); }}
+          onChangeNonFunctional={(id,text) => { const nf=nonFunctional.map(r=>r.id===id?{...r,text}:r); setNonFunctional(nf); if(activeProjectId) persistProject(activeProjectId,projectName,tables,relations,functional,nf); }}
+          onDeleteNonFunctional={(id) => { const nf=nonFunctional.filter(r=>r.id!==id); setNonFunctional(nf); if(activeProjectId) persistProject(activeProjectId,projectName,tables,relations,functional,nf); }} />
       </div>
       <AddTableModal isOpen={isAddTableOpen} onClose={() => setIsAddTableOpen(false)} defaultPosition={dropPosition} onAdd={(t) => { commit([...tables,t], relations); setSelectedTableId(t.id); }} />
       <SQLPanel isOpen={isSQLOpen} tables={tables} relations={relations} onClose={() => setIsSQLOpen(false)} />
