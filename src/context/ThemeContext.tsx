@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 
-export type Theme = 'dark' | 'night' | 'light';
+export type Theme = 'dark' | 'night' | 'light' | 'ocean' | 'forest' | 'paper' | 'lavender';
+
+const THEMES: Theme[] = ['dark', 'night', 'light', 'ocean', 'forest', 'paper', 'lavender'];
 
 interface ThemeContextValue {
   theme: Theme;
@@ -14,7 +16,8 @@ const ThemeContext = createContext<ThemeContextValue>({
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
-    return (localStorage.getItem('dblab-theme') as Theme) ?? 'dark';
+    const savedTheme = localStorage.getItem('dblab-theme');
+    return THEMES.find(option => option === savedTheme) ?? 'dark';
   });
 
   const setTheme = (t: Theme) => {

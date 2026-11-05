@@ -4,15 +4,19 @@ import { TEMPLATES } from '../../data/templates';
 import {
   Plus, Terminal, Download, Upload, Layout,
   ChevronDown, Undo2, Redo2, ChevronRight, Pencil,
-  Sun, Moon, CloudMoon, Database, FolderPlus, FileCode2,
+  Sun, Moon, CloudMoon, Database, FolderPlus, FileCode2, Waves, TreePine, Leaf, Flower2,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import type { Theme } from '../../context/ThemeContext';
 
 const THEME_OPTIONS: { value: Theme; label: string; icon: React.ReactNode }[] = [
-  { value: 'dark',  label: 'Dark',  icon: <Moon size={14} /> },
+  { value: 'dark', label: 'Dark', icon: <Moon size={14} /> },
   { value: 'night', label: 'Night', icon: <CloudMoon size={14} /> },
+  { value: 'ocean', label: 'Ocean', icon: <Waves size={14} /> },
+  { value: 'forest', label: 'Forest', icon: <TreePine size={14} /> },
   { value: 'light', label: 'Light', icon: <Sun size={14} /> },
+  { value: 'paper', label: 'Paper', icon: <Leaf size={14} /> },
+  { value: 'lavender', label: 'Lavender', icon: <Flower2 size={14} /> },
 ];
 
 interface NavbarProps {
