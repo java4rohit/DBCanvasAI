@@ -1,13 +1,13 @@
 import { useRef, useState } from 'react';
 import { FileCode2, Upload, X } from 'lucide-react';
 
-interface MermaidImportModalProps {
+interface SchemaImportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onImport: (source: string) => boolean;
 }
 
-export const MermaidImportModal: React.FC<MermaidImportModalProps> = ({ isOpen, onClose, onImport }) => {
+export const SchemaImportModal: React.FC<SchemaImportModalProps> = ({ isOpen, onClose, onImport }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [source, setSource] = useState('');
   const [fileName, setFileName] = useState('');
@@ -44,18 +44,18 @@ export const MermaidImportModal: React.FC<MermaidImportModalProps> = ({ isOpen, 
               <FileCode2 size={16} />
             </div>
             <div>
-              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-main)' }}>Import Mermaid ER Diagram</h3>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Paste diagram code or upload a Mermaid file.</p>
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-main)' }}>Import Database Schema</h3>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Paste Mermaid ER code or PostgreSQL DDL, or upload a text file.</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close Mermaid import" className="p-1 rounded transition-colors" style={{ color: 'var(--text-muted)' }}>
+          <button type="button" onClick={onClose} aria-label="Close schema import" className="p-1 rounded transition-colors" style={{ color: 'var(--text-muted)' }}>
             <X size={16} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <label htmlFor="mermaid-source" className="block text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Mermaid code</label>
+            <label htmlFor="schema-source" className="block text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Schema text</label>
             <div className="flex items-center gap-2">
               {fileName && <span className="text-xs truncate max-w-48" style={{ color: 'var(--text-muted)' }} title={fileName}>{fileName}</span>}
               <button
@@ -69,7 +69,7 @@ export const MermaidImportModal: React.FC<MermaidImportModalProps> = ({ isOpen, 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".mmd,.mermaid,.md,.txt"
+                accept=".mmd,.mermaid,.sql,.ddl,.md,.txt"
                 className="hidden"
                 onChange={event => {
                   void handleFile(event.target.files?.[0]);
@@ -79,10 +79,10 @@ export const MermaidImportModal: React.FC<MermaidImportModalProps> = ({ isOpen, 
             </div>
           </div>
           <textarea
-            id="mermaid-source"
+            id="schema-source"
             value={source}
             onChange={event => { setSource(event.target.value); setFileName(''); setFileError(''); }}
-            placeholder={'erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  CUSTOMER {\n    int id PK\n    varchar(120) name\n  }'}
+            placeholder={'CREATE TABLE customers (\n  id BIGSERIAL PRIMARY KEY,\n  name VARCHAR(120) NOT NULL\n);\n\nCREATE TABLE orders (\n  id BIGSERIAL PRIMARY KEY,\n  customer_id BIGINT NOT NULL REFERENCES customers(id)\n);'}
             spellCheck={false}
             required
             className="w-full min-h-64 resize-y rounded-lg px-3 py-3 text-xs font-mono leading-5 focus:outline-none"
@@ -94,7 +94,7 @@ export const MermaidImportModal: React.FC<MermaidImportModalProps> = ({ isOpen, 
               Cancel
             </button>
             <button type="submit" disabled={!source.trim()} className="px-5 py-2 rounded-lg text-white text-xs font-semibold disabled:opacity-50" style={{ background: 'var(--brand)' }}>
-              Import Diagram
+              Import Schema
             </button>
           </div>
         </form>

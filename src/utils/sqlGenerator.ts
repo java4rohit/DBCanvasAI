@@ -45,7 +45,7 @@ function mapPostgresType(col: Column): string {
     case 'ENUM':
       return 'VARCHAR(50)';
     case 'ARRAY':
-      return 'TEXT[]';
+      return col.typeArgs ? `${col.typeArgs}[]` : 'TEXT[]';
     case 'BYTEA':
       return 'BYTEA';
     default:
@@ -115,10 +115,12 @@ export function generatePostgreSql(tables: Table[], relations: Relation[]): stri
     }
     output += `CREATE TABLE "${table.name}" (\n`;
     const colLines: string[] = [];
+    const primaryKeys = table.columns.filter(col => col.isPrimaryKey);
+    const hasCompositePrimaryKey = primaryKeys.length > 1;
 
     for (const col of table.columns) {
       let line = `  "${col.name}" ${mapPostgresType(col)}`;
-      if (col.isPrimaryKey) {
+      if (col.isPrimaryKey && !hasCompositePrimaryKey) {
         line += ' PRIMARY KEY';
         if (col.type === 'UUID' && !col.defaultValue) {
           line += ' DEFAULT uuid_generate_v4()';
@@ -134,6 +136,9 @@ export function generatePostgreSql(tables: Table[], relations: Relation[]): stri
         line += ` DEFAULT ${col.defaultValue}`;
       }
       colLines.push(line);
+    }
+    if (hasCompositePrimaryKey) {
+      colLines.push(`  PRIMARY KEY (${primaryKeys.map(col => `"${col.name}"`).join(', ')})`);
     }
     for (const columns of table.uniqueTogether ?? []) {
       colLines.push(`  UNIQUE (${columns.map(name => `"${name}"`).join(', ')})`);
@@ -191,14 +196,19 @@ export function generateMySql(tables: Table[], relations: Relation[]): string {
   for (const table of tables) {
     output += `CREATE TABLE \`${table.name}\` (\n`;
     const lines: string[] = [];
+    const primaryKeys = table.columns.filter(col => col.isPrimaryKey);
+    const hasCompositePrimaryKey = primaryKeys.length > 1;
     for (const col of table.columns) {
       let l = `  \`${col.name}\` ${mapMysqlType(col)}`;
-      if (col.isPrimaryKey && (col.type === 'SERIAL' || col.type === 'BIGSERIAL')) l += ' AUTO_INCREMENT';
-      if (col.isPrimaryKey) l += ' PRIMARY KEY';
+      if (col.isPrimaryKey && !hasCompositePrimaryKey && (col.type === 'SERIAL' || col.type === 'BIGSERIAL')) l += ' AUTO_INCREMENT';
+      if (col.isPrimaryKey && !hasCompositePrimaryKey) l += ' PRIMARY KEY';
       if (!col.isNullable && !col.isPrimaryKey) l += ' NOT NULL';
       if (col.isUnique && !col.isPrimaryKey) l += ' UNIQUE';
       if (col.defaultValue && !col.isPrimaryKey) l += ` DEFAULT ${col.defaultValue}`;
       lines.push(l);
+    }
+    if (hasCompositePrimaryKey) {
+      lines.push(`  PRIMARY KEY (${primaryKeys.map(col => `\`${col.name}\``).join(', ')})`);
     }
     for (const columns of table.uniqueTogether ?? []) {
       lines.push(`  UNIQUE (${columns.map(name => `\`${name}\``).join(', ')})`);

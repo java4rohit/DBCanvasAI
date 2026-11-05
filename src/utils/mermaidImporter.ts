@@ -148,11 +148,14 @@ function resolveForeignKeyColumn(
   const parentStem = parent.name.toLowerCase().replace(/[^a-z0-9]/g, '');
   const parentPk = parentColumn.name.toLowerCase();
   const candidates = child.columns.filter(column => column.isForeignKey && !column.references);
-  const matched = candidates.find(column => {
+  const matched = candidates.filter(column => {
     const name = column.name.toLowerCase().replace(/[^a-z0-9]/g, '');
     return name.includes(parentStem) || name === parentPk;
   });
-  const column = matched ?? (candidates.length === 1 ? candidates[0] : undefined);
+  if (matched.length > 1 || (matched.length === 0 && candidates.length > 1)) {
+    throw new Error(`Could not determine which foreign-key column in "${child.name}" references "${parent.name}".`);
+  }
+  const column = matched[0] ?? (candidates.length === 1 ? candidates[0] : undefined);
   if (!column) {
     return createForeignKey(child, parent, parentColumn, isOptional(cardinality), unique);
   }
@@ -229,23 +232,10 @@ export function parseMermaidER(source: string): { tables: Table[]; relations: Re
   if (entities.size === 0) throw new Error('No entities or relationships were found in this Mermaid diagram.');
 
   const tables: Table[] = Array.from(entities.values(), (entity, index) => {
-    const columns = entity.columns;
-    if (!columns.some(column => column.isPrimaryKey)) {
-      columns.unshift({
-        id: createId('col'),
-        name: 'id',
-        type: 'SERIAL',
-        isPrimaryKey: true,
-        isForeignKey: false,
-        isNullable: false,
-        isUnique: false,
-        isIndexed: false,
-      });
-    }
     return {
       id: createId('table'),
       name: entity.name,
-      columns,
+      columns: entity.columns,
       color: TABLE_COLORS[index % TABLE_COLORS.length],
       position: { x: 60 + (index % 4) * 360, y: 80 + Math.floor(index / 4) * 320 },
     };
@@ -261,6 +251,9 @@ export function parseMermaidER(source: string): { tables: Table[]; relations: Re
     const rightPk = right.columns.find(column => column.isPrimaryKey)!;
     const leftMany = isMany(leftCardinality);
     const rightMany = isMany(rightCardinality);
+    if (!leftPk || !rightPk) {
+      throw new Error(`Relationship "${leftName} - ${rightName}" requires both entities to define a PK attribute.`);
+    }
 
     if (leftMany && rightMany) {
       let junctionName = `${left.name}_${right.name}`;
@@ -278,16 +271,6 @@ export function parseMermaidER(source: string): { tables: Table[]; relations: Re
       const leftFk = createForeignKey(junction, left, leftPk, false, false);
       const rightFk = createForeignKey(junction, right, rightPk, false, false);
       junction.uniqueTogether = [[leftFk.name, rightFk.name]];
-      junction.columns.unshift({
-        id: createId('col'),
-        name: 'id',
-        type: 'SERIAL',
-        isPrimaryKey: true,
-        isForeignKey: false,
-        isNullable: false,
-        isUnique: false,
-        isIndexed: false,
-      });
       relations.push(
         { id: createId(`rel${index}`), sourceTableId: junction.id, sourceColumnId: leftFk.id, targetTableId: left.id, targetColumnId: leftPk.id, type: '1:N' },
         { id: createId(`rel${index}`), sourceTableId: junction.id, sourceColumnId: rightFk.id, targetTableId: right.id, targetColumnId: rightPk.id, type: '1:N' },
@@ -298,8 +281,8 @@ export function parseMermaidER(source: string): { tables: Table[]; relations: Re
     const child = leftMany ? left : right;
     const parent = leftMany ? right : left;
     const parentColumn = leftMany ? rightPk : leftPk;
-    const parentCardinality = leftMany ? rightCardinality : leftCardinality;
-    const childColumn = resolveForeignKeyColumn(child, parent, parentColumn, parentCardinality, !leftMany && !rightMany);
+    const childCardinality = leftMany ? rightCardinality : leftCardinality;
+    const childColumn = resolveForeignKeyColumn(child, parent, parentColumn, childCardinality, !leftMany && !rightMany);
     relations.push({
       id: createId('rel'),
       sourceTableId: child.id,
