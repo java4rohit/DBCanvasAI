@@ -23,7 +23,7 @@ function getPort(table:Table,columnId:string,targetX:number){
 
 function cardinality(type:'1:1'|'1:N'|'N:M'){
   if(type==='1:1')return{srcMany:false,tgtMany:false};
-  if(type==='1:N')return{srcMany:false,tgtMany:true};
+  if(type==='1:N')return{srcMany:true,tgtMany:false};
   return{srcMany:true,tgtMany:true};
 }
 
