@@ -6,24 +6,48 @@ function mapPostgresType(col: Column): string {
   switch (col.type) {
     case 'UUID':
       return 'UUID';
+    case 'BIGSERIAL':
+      return 'BIGSERIAL';
     case 'BIGINT':
       return 'BIGINT';
+    case 'SERIAL':
+      return 'SERIAL';
     case 'INT':
       return 'INTEGER';
+    case 'SMALLINT':
+      return 'SMALLINT';
     case 'VARCHAR':
       return `VARCHAR(${col.typeArgs || '255'})`;
+    case 'CHAR':
+      return `CHAR(${col.typeArgs || '1'})`;
     case 'TEXT':
       return 'TEXT';
     case 'BOOLEAN':
       return 'BOOLEAN';
     case 'TIMESTAMP':
       return 'TIMESTAMPTZ';
+    case 'TIMESTAMPTZ':
+      return 'TIMESTAMPTZ';
+    case 'DATE':
+      return 'DATE';
+    case 'TIME':
+      return 'TIME';
     case 'DECIMAL':
       return `DECIMAL(${col.typeArgs || '10,2'})`;
+    case 'NUMERIC':
+      return `NUMERIC${col.typeArgs ? `(${col.typeArgs})` : ''}`;
+    case 'FLOAT':
+      return 'DOUBLE PRECISION';
     case 'JSONB':
       return 'JSONB';
+    case 'JSON':
+      return 'JSON';
     case 'ENUM':
       return 'VARCHAR(50)';
+    case 'ARRAY':
+      return 'TEXT[]';
+    case 'BYTEA':
+      return 'BYTEA';
     default:
       return 'TEXT';
   }
@@ -33,22 +57,41 @@ function mapMysqlType(col: Column): string {
   switch (col.type) {
     case 'UUID':
       return 'CHAR(36)';
+    case 'BIGSERIAL':
     case 'BIGINT':
       return 'BIGINT';
+    case 'SERIAL':
     case 'INT':
       return 'INT';
+    case 'SMALLINT':
+      return 'SMALLINT';
     case 'VARCHAR':
       return `VARCHAR(${col.typeArgs || '255'})`;
+    case 'CHAR':
+      return `CHAR(${col.typeArgs || '1'})`;
     case 'TEXT':
       return 'TEXT';
     case 'BOOLEAN':
       return 'TINYINT(1)';
     case 'TIMESTAMP':
+    case 'TIMESTAMPTZ':
       return 'DATETIME';
+    case 'DATE':
+      return 'DATE';
+    case 'TIME':
+      return 'TIME';
     case 'DECIMAL':
       return `DECIMAL(${col.typeArgs || '10,2'})`;
+    case 'NUMERIC':
+      return `NUMERIC${col.typeArgs ? `(${col.typeArgs})` : ''}`;
+    case 'FLOAT':
+      return 'DOUBLE';
     case 'JSONB':
+    case 'JSON':
+    case 'ARRAY':
       return 'JSON';
+    case 'BYTEA':
+      return 'BLOB';
     case 'ENUM':
       return 'VARCHAR(50)';
     default:
@@ -91,6 +134,9 @@ export function generatePostgreSql(tables: Table[], relations: Relation[]): stri
         line += ` DEFAULT ${col.defaultValue}`;
       }
       colLines.push(line);
+    }
+    for (const columns of table.uniqueTogether ?? []) {
+      colLines.push(`  UNIQUE (${columns.map(name => `"${name}"`).join(', ')})`);
     }
 
     output += colLines.join(',\n');
@@ -147,11 +193,15 @@ export function generateMySql(tables: Table[], relations: Relation[]): string {
     const lines: string[] = [];
     for (const col of table.columns) {
       let l = `  \`${col.name}\` ${mapMysqlType(col)}`;
+      if (col.isPrimaryKey && (col.type === 'SERIAL' || col.type === 'BIGSERIAL')) l += ' AUTO_INCREMENT';
       if (col.isPrimaryKey) l += ' PRIMARY KEY';
       if (!col.isNullable && !col.isPrimaryKey) l += ' NOT NULL';
       if (col.isUnique && !col.isPrimaryKey) l += ' UNIQUE';
       if (col.defaultValue && !col.isPrimaryKey) l += ` DEFAULT ${col.defaultValue}`;
       lines.push(l);
+    }
+    for (const columns of table.uniqueTogether ?? []) {
+      lines.push(`  UNIQUE (${columns.map(name => `\`${name}\``).join(', ')})`);
     }
     output += lines.join(',\n');
     output += '\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;\n\n';
@@ -182,10 +232,16 @@ export function generatePrisma(tables: Table[], _relations: Relation[]): string 
       let prismaType = 'String';
       if (col.type === 'INT') prismaType = 'Int';
       if (col.type === 'BIGINT') prismaType = 'BigInt';
+      if (col.type === 'BIGSERIAL') prismaType = 'BigInt';
+      if (col.type === 'SERIAL' || col.type === 'SMALLINT') prismaType = 'Int';
+      if (col.type === 'VARCHAR' || col.type === 'CHAR' || col.type === 'TEXT' || col.type === 'UUID') prismaType = 'String';
       if (col.type === 'BOOLEAN') prismaType = 'Boolean';
       if (col.type === 'TIMESTAMP') prismaType = 'DateTime';
+      if (col.type === 'TIMESTAMPTZ' || col.type === 'DATE' || col.type === 'TIME') prismaType = 'DateTime';
       if (col.type === 'DECIMAL') prismaType = 'Decimal';
-      if (col.type === 'JSONB') prismaType = 'Json';
+      if (col.type === 'NUMERIC' || col.type === 'FLOAT') prismaType = 'Decimal';
+      if (col.type === 'JSONB' || col.type === 'JSON') prismaType = 'Json';
+      if (col.type === 'ARRAY') prismaType = 'String[]';
 
       let line = `  ${col.name.padEnd(20)} ${prismaType}${col.isNullable ? '?' : ''}`;
       if (col.isPrimaryKey) {

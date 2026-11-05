@@ -12,6 +12,7 @@ import { RightPanel } from './components/RightPanel/RightPanel';
 import { NewProjectScreen } from './components/NewProject/NewProjectScreen';
 import { ProjectsSidebar } from './components/Projects/ProjectsSidebar';
 import { ThemeProvider } from './context/ThemeContext';
+import { parseMermaidER } from './utils/mermaidImporter';
 import {
   getAllProjects, saveProject, deleteProject,
   getActiveProjectId, setActiveProjectId, createNewProject,
@@ -226,6 +227,18 @@ function AppInner() {
     reader.readAsText(file);
   };
 
+  const handleImportMermaid = async (file: File) => {
+    try {
+      const schema = parseMermaidER(await file.text());
+      commit(schema.tables, schema.relations);
+      setSelectedTableId(null);
+      setSelectedRelationId(null);
+      setMode('freeform');
+    } catch (error) {
+      alert(error instanceof Error ? `Failed to import Mermaid diagram: ${error.message}` : 'Failed to import Mermaid diagram.');
+    }
+  };
+
   // ── Project management ─────────────────────────────────────────────────
   const handleStartNewProject = async (name: string) => {
     const proj = createNewProject(name);
@@ -290,7 +303,7 @@ function AppInner() {
         mode={mode} onToggleMode={setMode}
         onOpenAddTable={() => setIsAddTableOpen(true)} onOpenSQL={() => setIsSQLOpen(true)}
         onAutoArrange={handleAutoArrange} onSelectTemplate={(tmpl: SchemaTemplate) => { commit(tmpl.tables, tmpl.relations); setSelectedTableId(null); setSelectedRelationId(null); }}
-        onExportJson={handleExportJson} onImportJson={handleImportJson}
+        onExportJson={handleExportJson} onImportJson={handleImportJson} onImportMermaid={handleImportMermaid}
         tableCount={tables.length} relationCount={relations.length}
         projectName={projectName} onProjectNameChange={setProjectName}
         canUndo={past.length > 0} canRedo={future.length > 0}
