@@ -7,6 +7,7 @@ import { Canvas } from './components/Canvas/Canvas';
 import { LabSidebar } from './components/Lab/LabSidebar';
 import { Navbar } from './components/Navigation/Navbar';
 import { AddTableModal } from './components/Modals/AddTableModal';
+import { MermaidImportModal } from './components/Modals/MermaidImportModal';
 import { SQLPanel } from './components/SQLGenerator/SQLPanel';
 import { RightPanel } from './components/RightPanel/RightPanel';
 import { NewProjectScreen } from './components/NewProject/NewProjectScreen';
@@ -41,6 +42,7 @@ function AppInner() {
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [selectedRelationId, setSelectedRelationId] = useState<string | null>(null);
   const [isAddTableOpen, setIsAddTableOpen] = useState(false);
+  const [isMermaidImportOpen, setIsMermaidImportOpen] = useState(false);
   const [isSQLOpen, setIsSQLOpen] = useState(false);
   const [dropPosition, setDropPosition] = useState<{ x: number; y: number }>({ x: 200, y: 200 });
   const [leftWidth, setLeftWidth] = useState(300);
@@ -227,15 +229,17 @@ function AppInner() {
     reader.readAsText(file);
   };
 
-  const handleImportMermaid = async (file: File) => {
+  const handleImportMermaid = (source: string): boolean => {
     try {
-      const schema = parseMermaidER(await file.text());
+      const schema = parseMermaidER(source);
       commit(schema.tables, schema.relations);
       setSelectedTableId(null);
       setSelectedRelationId(null);
       setMode('freeform');
+      return true;
     } catch (error) {
       alert(error instanceof Error ? `Failed to import Mermaid diagram: ${error.message}` : 'Failed to import Mermaid diagram.');
+      return false;
     }
   };
 
@@ -303,7 +307,7 @@ function AppInner() {
         mode={mode} onToggleMode={setMode}
         onOpenAddTable={() => setIsAddTableOpen(true)} onOpenSQL={() => setIsSQLOpen(true)}
         onAutoArrange={handleAutoArrange} onSelectTemplate={(tmpl: SchemaTemplate) => { commit(tmpl.tables, tmpl.relations); setSelectedTableId(null); setSelectedRelationId(null); }}
-        onExportJson={handleExportJson} onImportJson={handleImportJson} onImportMermaid={handleImportMermaid}
+        onExportJson={handleExportJson} onImportJson={handleImportJson} onOpenImportMermaid={() => setIsMermaidImportOpen(true)}
         tableCount={tables.length} relationCount={relations.length}
         projectName={projectName} onProjectNameChange={setProjectName}
         canUndo={past.length > 0} canRedo={future.length > 0}
@@ -387,6 +391,7 @@ function AppInner() {
           onDeleteNonFunctional={(id) => { const nf=nonFunctional.filter(r=>r.id!==id); setNonFunctional(nf); if(activeProjectId) persistProject(activeProjectId,projectName,tables,relations,functional,nf); }} />
       </div>
       <AddTableModal isOpen={isAddTableOpen} onClose={() => setIsAddTableOpen(false)} defaultPosition={dropPosition} onAdd={(t) => { commit([...tables,t], relations); setSelectedTableId(t.id); }} />
+      <MermaidImportModal isOpen={isMermaidImportOpen} onClose={() => setIsMermaidImportOpen(false)} onImport={handleImportMermaid} />
       <SQLPanel isOpen={isSQLOpen} tables={tables} relations={relations} onClose={() => setIsSQLOpen(false)} />
     </div>
   );

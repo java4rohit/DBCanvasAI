@@ -24,7 +24,7 @@ interface NavbarProps {
   onSelectTemplate: (template: SchemaTemplate) => void;
   onExportJson: () => void;
   onImportJson: (file: File) => void;
-  onImportMermaid: (file: File) => void;
+  onOpenImportMermaid: () => void;
   tableCount: number;
   relationCount: number;
   projectName: string;
@@ -38,11 +38,10 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({
   mode, onToggleMode, onOpenAddTable, onOpenSQL, onAutoArrange,
-  onSelectTemplate, onExportJson, onImportJson, onImportMermaid, tableCount, relationCount,
+  onSelectTemplate, onExportJson, onImportJson, onOpenImportMermaid, tableCount, relationCount,
   projectName, onProjectNameChange, canUndo, canRedo, onUndo, onRedo, onNewProject,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const mermaidFileInputRef = useRef<HTMLInputElement>(null);
   const [editingName, setEditingName] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -120,9 +119,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button onClick={() => fileInputRef.current?.click()} title="Import JSON" className="navbar-icon-btn"><Upload size={14} /></button>
         <input ref={fileInputRef} type="file" accept=".json" className="hidden"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) onImportJson(f); e.target.value = ''; }} />
-        <button onClick={() => mermaidFileInputRef.current?.click()} title="Import Mermaid ER diagram" className="navbar-action-btn"><FileCode2 size={13} /><span>Import Mermaid</span></button>
-        <input ref={mermaidFileInputRef} type="file" accept=".mmd,.mermaid,.md,.txt" className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) onImportMermaid(f); e.target.value = ''; }} />
+        <button onClick={onOpenImportMermaid} title="Paste or upload a Mermaid ER diagram" className="navbar-action-btn"><FileCode2 size={13} /><span>Import Mermaid</span></button>
 
         <div className="relative">
           <button onClick={() => setThemeOpen(!themeOpen)} className="navbar-theme-btn" title="Change Theme">
